@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Xcode - user settings & build artifacts
+xcuserdata/
+*.xcuserstate
+*.xcuserstatee
+DerivedData/
+build/
+*.moved-aside
+
+# Swift Package Manager
+.swiftpm/
+.build/
