@@ -6,6 +6,8 @@
     @Section(title: "ARKit 지오메트리를 RealityKit 메시로 바꾸기") {
         @ContentAndMedia {
             ARKit은 방의 형태를 GPU 버퍼로 넘겨줍니다. RealityKit은 `MeshResource`를 원합니다. 둘 사이를 잇는 변환 계층이 필요합니다.
+            
+            > 출처: 이 섹션의 `Extensions.swift`는 Apple의 **Building Local Experiences With Room Tracking** 샘플 코드에서 가져왔습니다. 포인터 연산으로 정점 버퍼를 읽는 부분은 직접 쓰기보다 검증된 구현을 그대로 쓰는 편이 안전합니다.
         }
         
         @Steps {

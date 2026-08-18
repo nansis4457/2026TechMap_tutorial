@@ -9,7 +9,7 @@
         @ContentAndMedia {
             visionOS 프로젝트를 만들고, 쿠키와 오븐 모델을 넣고, 앱이 어떤 화면으로 시작할지 정합니다.
             
-            visionOS 앱은 일반 iOS 앱과 시작 지점이 다릅니다. 평면 창으로 열 수도 있고 몰입 공간으로 곧장 들어갈 수도 있는데, 이 선택은 코드가 아니라 프로젝트 설정에 적혀 있습니다. 이 섹션에서는 그 설정 파일을 직접 확인합니다.
+            visionOS 앱은 일반 iOS 앱과 시작 지점이 다릅니다. 평면 창으로 열 수도 있고 몰입 공간으로 곧장 들어갈 수도 있는데, 이 선택은 코드가 아니라 프로젝트를 만들 때 정합니다. 이 앱은 몰입 공간으로 시작합니다.
             
             그리고 방 정보는 사용자의 사적인 공간 데이터입니다. 시스템이 앱에 그냥 넘겨주지 않기 때문에, 왜 필요한지 설명하는 문구를 미리 등록해 두어야 합니다.
         }
@@ -18,7 +18,7 @@
             @Step {
                 Xcode에서 **File → New → Project**를 열고 **visionOS → App** 템플릿을 고른 뒤, Product Name을 `CookieDungeon`으로 지정합니다.
                 
-                다음 화면의 두 옵션이 중요합니다. **Initial Scene**은 `Window`, **Immersive Space**는 `Mixed`로 둡니다. `Mixed`는 패스스루로 실제 방이 보이는 상태 위에 가상 물체를 얹는 방식입니다. 화면을 완전히 가리는 `Full`을 고르면 방을 인식할 이유 자체가 사라집니다.
+                다음 화면의 두 옵션이 중요합니다. **Initial Scene**을 `Immersive Space`로 두면 앱을 켜자마자 평면 창이 아니라 몰입 공간이 열립니다. 룸 트래킹은 몰입 공간 안에서만 동작하므로 이 앱에는 그쪽이 맞습니다. **Immersion Style**은 `Mixed`를 고릅니다. 패스스루로 실제 방이 보이는 상태 위에 가상 물체를 얹는 방식이라, 화면을 완전히 가리는 `Full`을 고르면 방을 인식할 이유 자체가 사라집니다.
             }
             
             @Step {
@@ -26,14 +26,7 @@
                 
                 `Cream_Soda_Cookie_Epic_Skin.usdz`, `Prosciutto_Cookie.usdz`, `Marshmallow_Bunny_Cookie.usdz`, `oven.usdz` 네 개입니다. 추가 대화상자에서 **Copy items if needed**를 켜고 **Add to targets**에 `CookieDungeon`이 체크됐는지 확인하세요. 타깃에 포함되지 않으면 빌드는 통과하지만 실행 중에 모델 로드가 조용히 실패합니다.
             }
-            
-            @Step {
-                `Info.plist`를 열어 씬 설정을 확인합니다.
-                
-                `UIApplicationPreferredDefaultSceneSessionRole`이 `UISceneSessionRoleImmersiveSpaceApplication`으로 되어 있습니다. 앱을 켜면 평면 창이 아니라 **몰입 공간이 먼저 열린다**는 뜻입니다. 아래 `UISceneInitialImmersionStyle`의 `UIImmersionStyleMixed`가 그 몰입 공간의 초기 스타일을 정합니다. 코드에서 `.mixed`를 지정하는 것과 짝을 이룹니다.
-                
-                @Code(name: "Info.plist", file: Info-01-SceneManifest.plist)
-            }
+
             
             @Step {
                 프로젝트 설정에서 타깃 `CookieDungeon`을 고르고 **Info** 탭으로 가서, `Privacy - World Sensing Usage Description` 키를 추가한 뒤 설명 문구를 적습니다.
@@ -60,9 +53,17 @@
             @Step {
                 권한 거부 안내용 `WindowGroup`을 추가합니다.
                 
-                몰입 공간 안에서는 시스템 설정으로 보내는 안내를 띄우기 어렵습니다. 그래서 예외 경로만 평면 창으로 뺍니다. 두 화면이 같은 `appState`를 `environment`로 공유해야 권한 상태와 세션이 한 곳에서 관리됩니다. `defaultSize`는 오븐 모델과 안내 문구가 나란히 들어갈 만큼 창을 넓게 잡아 줍니다.
+                몰입 공간 안에서는 시스템 설정으로 보내는 안내를 띄우기 어렵습니다. 그래서 예외 경로만 평면 창으로 뺍니다. 두 화면이 같은 `appState`를 `environment`로 공유해야 권한 상태와 세션이 한 곳에서 관리됩니다. `defaultSize`로 창의 기본 크기를, `windowResizability`로 내용에 맞춘 크기 조절 방식을 정합니다.
                 
                 @Code(name: "CookieDungeonApp.swift", file: CookieDungeonApp-02-Scenes.swift, previousFile: CookieDungeonApp-01-ImmersiveSpace.swift)
+            }
+            
+            @Step {
+                방금 만든 `WindowGroup`이 열리면 이런 모습이 됩니다.
+                
+                패스스루로 보이는 실제 거실 위에 평면 창 하나가 떠 있습니다. 몰입 공간은 그대로 열려 있고 이 창만 그 앞에 겹쳐지는데, 이것이 예외 경로를 평면 창으로 뺀 이유입니다. 창의 내용은 이 챕터 마지막 섹션에서 만듭니다.
+                
+                @Image(source: "permission-window.jpg", alt: "거실 공간에 권한 거부 안내 창이 떠 있는 모습")
             }
             
             @Step {
