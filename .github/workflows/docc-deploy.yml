@@ -137,10 +137,78 @@ jobs:
 
             // Also handle menu navigation that doesn't emit a history event.
             document.addEventListener("click", scheduleScroll, true)
+
+            // --- 변경된 코드 줄로 자동 이동 ---
+            // DocC는 이전 단계 대비 추가된 줄에 .highlighted를 붙인다.
+            // 파일이 길면 그 줄이 패널 아래쪽에 묻히므로, 패널을 변경 지점으로 스크롤한다.
+            const CODE_PANEL = ".code-listing:not(.full-code-listing) > .container-general"
+
+            const revealFirstChange = (panel) => {
+              if (panel.dataset.changeRevealed === "1") return
+              if (panel.scrollHeight <= panel.clientHeight) return
+
+              const firstChange = panel.querySelector(".highlighted")
+              if (!firstChange) return
+
+              const delta =
+                firstChange.getBoundingClientRect().top -
+                panel.getBoundingClientRect().top
+
+              // 변경 지점 위로 약간의 여백을 남겨 문맥이 함께 보이게 한다.
+              panel.scrollTop += delta - panel.clientHeight * 0.28
+              panel.dataset.changeRevealed = "1"
+            }
+
+            const panelObserver = new IntersectionObserver(
+              (entries) => {
+                for (const entry of entries) {
+                  if (entry.isIntersecting) revealFirstChange(entry.target)
+                }
+              },
+              { threshold: 0.35 }
+            )
+
+            const watchPanels = () => {
+              for (const panel of document.querySelectorAll(CODE_PANEL)) {
+                if (panel.dataset.changeWatched === "1") continue
+                panel.dataset.changeWatched = "1"
+                panelObserver.observe(panel)
+              }
+            }
+
+            // 코드 패널은 스텝 전환 시 내용이 갈아끼워지므로 재적용이 필요하다.
+            const resetAndRewatch = () => {
+              for (const panel of document.querySelectorAll(CODE_PANEL)) {
+                delete panel.dataset.changeRevealed
+              }
+              watchPanels()
+            }
+
+            window.addEventListener("load", () => {
+              watchPanels()
+              new MutationObserver(() => window.setTimeout(watchPanels, 0))
+                .observe(document.body, { childList: true, subtree: true })
+            })
+
+            window.addEventListener("hashchange", resetAndRewatch)
           })()
           EOF
 
           cat > "$SITE_ROOT/theme-fix.css" <<'EOF'
+          /* 코드 패널이 전체 높이로 펼쳐지면 변경된 줄이 화면 밖으로 나간다.
+             높이를 제한해 패널 안에서 스크롤되도록 만든다. */
+          .code-listing:not(.full-code-listing) > .container-general {
+            max-height: calc(100vh - 9rem);
+            overflow-y: auto;
+            scroll-behavior: smooth;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .code-listing:not(.full-code-listing) > .container-general {
+              scroll-behavior: auto;
+            }
+          }
+
           /* DocC keeps tutorial overview pages dark even in Light mode. */
           body[data-color-scheme="light"]:has(.tutorials-overview) {
             --color-text-background: #fff;
@@ -279,7 +347,7 @@ jobs:
         run: |
           ROOT_INDEX="$RUNNER_TEMP/docc-site/index.html"
           TUTORIAL_INDEX="$RUNNER_TEMP/docc-site/tutorials/tableofcontents/index.html"
-          ROOM_TUTORIAL_INDEX="$RUNNER_TEMP/docc-site/tutorials/cookiedungeon/roomtracking/index.html"
+          CHAPTER_PAGES="setup roomtracking cookieplacement"
           SCROLL_FIX="$RUNNER_TEMP/docc-site/scroll-fix.js"
           THEME_FIX="$RUNNER_TEMP/docc-site/theme-fix.css"
           EXPECTED_BASE="/${{ github.event.repository.name }}/"
@@ -295,10 +363,12 @@ jobs:
             exit 1
           fi
 
-          if [ ! -f "$ROOM_TUTORIAL_INDEX" ]; then
-            echo "::error::Room Tracking 튜토리얼 페이지가 생성되지 않았습니다."
-            exit 1
-          fi
+          for chapter in $CHAPTER_PAGES; do
+            if [ ! -f "$RUNNER_TEMP/docc-site/tutorials/cookiedungeon/$chapter/index.html" ]; then
+              echo "::error::$chapter 튜토리얼 페이지가 생성되지 않았습니다."
+              exit 1
+            fi
+          done
 
           if [ ! -f "$SCROLL_FIX" ]; then
             echo "::error::튜토리얼 섹션 스크롤 보정 파일이 없습니다."
@@ -321,10 +391,13 @@ jobs:
             exit 1
           fi
 
-          if ! grep -Fq "${EXPECTED_BASE}scroll-fix.js" "$ROOM_TUTORIAL_INDEX"; then
-            echo "::error::튜토리얼 페이지에 섹션 스크롤 보정이 적용되지 않았습니다."
-            exit 1
-          fi
+          for chapter in $CHAPTER_PAGES; do
+            if ! grep -Fq "${EXPECTED_BASE}scroll-fix.js" \
+                "$RUNNER_TEMP/docc-site/tutorials/cookiedungeon/$chapter/index.html"; then
+              echo "::error::$chapter 페이지에 섹션 스크롤 보정이 적용되지 않았습니다."
+              exit 1
+            fi
+          done
 
           if ! grep -Fq "${EXPECTED_BASE}theme-fix.css" "$TUTORIAL_INDEX"; then
             echo "::error::튜토리얼 목차에 테마 보정이 적용되지 않았습니다."
@@ -333,6 +406,7 @@ jobs:
 
           echo "Verified DocC base path: $EXPECTED_BASE"
           echo "Verified landing page: $LANDING_URL"
+          echo "Verified tutorial pages: $CHAPTER_PAGES"
           echo "Verified tutorial section scrolling fix"
           echo "Verified tutorial overview color-scheme fix"
 

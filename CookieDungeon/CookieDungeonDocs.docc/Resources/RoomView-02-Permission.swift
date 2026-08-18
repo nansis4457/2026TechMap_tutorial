@@ -3,7 +3,7 @@ import RealityKit
 import RealityKitContent
 import SwiftUI
 
-struct TutorialRoomView: View {
+struct RoomView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.openWindow) private var openWindow
     
@@ -28,6 +28,6 @@ struct TutorialRoomView: View {
 }
 
 #Preview(immersionStyle: .mixed) {
-    TutorialRoomView()
+    RoomView()
         .environment(AppState())
 }

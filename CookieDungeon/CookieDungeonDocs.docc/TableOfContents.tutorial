@@ -1,14 +1,37 @@
-@Tutorials(name: "Cookie Dungeon 개발 가이드") {
-    @Intro(title: "Cookie Dungeon 공간 컴퓨팅 튜토리얼") {
-        이 튜토리얼은 visionOS에서 방을 인식하고 객체를 배치하는 과정을 안내합니다.
+@Tutorials(name: "Cookie Dungeon") {
+    @Intro(title: "visionOS 룸 트래킹으로 방마다 다른 쿠키 놓기") {
+        내가 서 있는 방을 앱이 알아보게 만듭니다. ARKit의 `RoomTrackingProvider`로 방의 형태를 실시간으로 읽어 들이고, 벽 너머의 가상 물체를 자연스럽게 가리고, 방을 옮길 때마다 다른 쿠키가 기다리게 만듭니다.
         
+        빈 프로젝트에서 시작해 세 챕터를 따라가면 완성됩니다.
+        
+        ### 준비물
+        
+        - Xcode 26.6 이상
+        - visionOS 26.5 이상
+        - **Apple Vision Pro 실기기 필수** — 룸 트래킹은 시뮬레이터에서 동작하지 않습니다.
     }
     
-    @Chapter(name: "방 인식과 렌더링") {
-        RoomTrackingProvider를 사용하여 방의 구조를 파악해 봅니다.
+    @Chapter(name: "몰입 공간과 권한 준비하기") {
+        룸 트래킹은 권한 없이는 한 줄도 실행되지 않습니다. 앱의 두 화면을 만들고, 월드 센싱 권한을 요청하고, 거부됐을 때 사용자를 되돌리는 길까지 먼저 깔아 둡니다.
         
-        @Image(source: "PreparationStep.png", alt: "챕터 이미지")
+        @Image(source: "PreparationStep.png", alt: "권한 요청 화면")
         
-        @TutorialReference(tutorial: "doc:RoomTracking") 
+        @TutorialReference(tutorial: "doc:Setup")
+    }
+    
+    @Chapter(name: "방 인식과 오클루전") {
+        ARKit이 넘겨주는 방 지오메트리를 RealityKit 메시로 바꾸고, 투명한 방 껍데기를 세워 옆방의 물체가 벽을 뚫고 보이지 않게 만듭니다.
+        
+        @Image(source: "PreparationStep.png", alt: "인식된 방의 형태")
+        
+        @TutorialReference(tutorial: "doc:RoomTracking")
+    }
+    
+    @Chapter(name: "방마다 다른 쿠키 놓기") {
+        방을 발견한 순서를 기억해 두고, 방 바닥 근처에 서로 다른 쿠키를 하나씩 띄웁니다.
+        
+        @Image(source: "PreparationStep.png", alt: "방에 배치된 쿠키")
+        
+        @TutorialReference(tutorial: "doc:CookiePlacement")
     }
 }

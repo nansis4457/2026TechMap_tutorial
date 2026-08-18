@@ -1,66 +1,104 @@
 @Tutorial(time: 30) {
-    @Intro(title: "방 인식(Room Tracking)과 가상 객체 배치하기") {
-        visionOS의 `RoomTrackingProvider`를 활용하여 사용자가 위치한 방의 구조를 실시간으로 파악하는 방법을 배웁니다.
-
-        방의 형태를 인식하여 벽 너머의 가상 객체를 가려주는 오클루전(Occlusion)을 적용하고, 방마다 다른 3D 쿠키 모델을 정중앙에 배치해 봅니다.
+    @Intro(title: "방 인식과 오클루전") {
+        ARKit의 `RoomTrackingProvider`는 사용자가 있는 방의 형태를 실시간으로 알려 줍니다. 이 챕터에서는 그 원시 데이터를 RealityKit이 그릴 수 있는 메시로 바꾸고, 투명한 방 껍데기를 세워 옆방의 물체가 벽을 뚫고 보이지 않게 만듭니다.
     }
-
-    @Section(title: "데이터 모델 및 익스텐션 준비하기") {
+    
+    @Section(title: "ARKit 지오메트리를 RealityKit 메시로 바꾸기") {
         @ContentAndMedia {
-            본격적인 ARKit 세션을 실행하기 전, 3D 에셋을 안전하게 관리할 열거형과 복잡한 수학 연산을 도와줄 익스텐션 파일을 프로젝트에 추가합니다.
+            ARKit은 방의 형태를 GPU 버퍼로 넘겨줍니다. RealityKit은 `MeshResource`를 원합니다. 둘 사이를 잇는 변환 계층이 필요합니다.
         }
-
+        
         @Steps {
             @Step {
-                먼저, 화면에 띄울 쿠키 모델들의 파일명을 관리하는 열거형을 생성합니다. `CaseIterable`을 채택하여 배열처럼 순회할 수 있게 만듭니다.
-
-                @Code(name: "CookieModel.swift", file: CookieModel.swift)
+                `Extensions.swift`를 만들고 `SIMD4`에서 앞 세 성분만 꺼내는 편의 속성을 추가합니다.
+                
+                좌표 변환에는 4×4 행렬을 쓰기 때문에 결과가 `SIMD4`로 나옵니다. 실제 위치는 앞의 세 성분이므로 매번 꺼내 쓰게 됩니다.
+                
+                @Code(name: "Extensions.swift", file: Extensions-01-SIMD4.swift)
             }
-
+            
             @Step {
-                ARKit의 수학적 뼈대 데이터(Geometry)를 RealityKit의 메시(MeshResource)로 변환하기 위한 익스텐션을 추가합니다.
-
-                @Code(name: "Extensions.swift", file: Extensions.swift)
+                원시 버퍼를 Swift 배열로 옮기는 익스텐션을 추가합니다.
+                
+                `GeometrySource`는 정점 데이터를 담은 메모리 블록에 대한 포인터입니다. `offset`과 `stride`를 직접 계산해 한 칸씩 읽어야 하는 이유는, 데이터가 촘촘히 붙어 있지 않고 일정 간격으로 흩어져 있을 수 있기 때문입니다. `GeometryElement`는 어떤 정점 셋이 하나의 삼각형을 이루는지 알려 주는 인덱스 목록입니다.
+                
+                @Code(name: "Extensions.swift", file: Extensions-02-GeometrySource.swift, previousFile: Extensions-01-SIMD4.swift)
             }
-        }
-    }
-
-    @Section(title: "AppState 구현: 방 추적과 오클루전 적용") {
-        @ContentAndMedia {
-            이제 ARKit 세션을 실행하고 연속으로 전달되는 방 데이터를 처리하는 비동기 루프를 구현합니다. 투명한 방 껍데기를 세워 다른 방의 객체를 가리고 쿠키를 정중앙에 배치합니다.
-        }
-
-        @Steps {
+            
             @Step {
-                `AppState` 클래스를 생성하고 ARKit 세션과 Provider, 추적된 데이터를 저장할 딕셔너리를 선언합니다.
-
-                @Code(name: "AppState.swift", file: AppState-Properties.swift)
-            }
-
-            @Step {
-                방의 정중앙 좌표에 순번에 맞는 쿠키를 배치하는 `placeCookie` 함수를 추가합니다. 열거형에서 알맞은 쿠키 이름을 가져와 비동기로 모델을 불러옵니다.
-
-                @Code(name: "AppState.swift", file: AppState-PlaceCookie.swift)
-            }
-
-            @Step {
-                실시간으로 방 데이터의 변화를 수신하는 `processRoomTrackingUpdates` 루프를 구현합니다. 여기에서 오클루전 껍데기를 만들고 쿠키 배치 함수를 호출합니다.
-
-                @Code(name: "AppState.swift", file: AppState-RoomUpdates.swift)
+                두 조각을 합쳐 `MeshResource`를 만드는 익스텐션을 완성합니다.
+                
+                `MeshDescriptor`에 정점 위치와 삼각형 인덱스를 넣으면 RealityKit이 그릴 수 있는 메시가 나옵니다. 정점 배열이 비었을 때 `nil`을 돌려주는 방어 코드가 중요합니다. 방을 스캔하는 초기 몇 프레임 동안은 지오메트리가 비어서 들어오기 때문입니다.
+                
+                @Code(name: "Extensions.swift", file: Extensions-03-MeshResource.swift, previousFile: Extensions-02-GeometrySource.swift)
             }
         }
     }
-
-    @Section(title: "View에 연결하기") {
+    
+    @Section(title: "ARKit 세션 실행하기") {
         @ContentAndMedia {
-            마지막으로 `RealityView`를 구성하여 `AppState`가 관리하는 가상 콘텐츠 루트를 화면에 렌더링합니다.
+            프로바이더 두 개를 준비하고 세션을 띄웁니다.
+            
+            엔티티 루트가 둘로 나뉜 것에 주목하세요. `contentRoot`에는 쿠키가, `roomRoot`에는 방 껍데기가 붙습니다. 성격이 다른 두 그룹을 나눠 두면 나중에 한쪽만 통째로 켜고 끄기가 쉽습니다. `roomRoot`이 `private`이 아닌 이유는 뷰에서 직접 씬에 추가해야 하기 때문입니다.
         }
-
+        
         @Steps {
             @Step {
-                `TutorialRoomView`에서 `AppState`를 환경 값으로 주입받고, `RealityView` 안에 `contentRoot`를 추가합니다.
-
-                @Code(name: "TutorialRoomView.swift", file: TutorialRoomView.swift)
+                `AppState`에 프로바이더와 엔티티 저장소를 추가합니다.
+                
+`RoomTrackingProvider`는 방 형태를, `WorldTrackingProvider`는 그 방이 놓인 월드 좌표 기준을 담당합니다. 방 좌표를 월드 좌표로 옮기려면 기준이 되는 월드 원점이 필요하므로 둘을 함께 실행합니다.
+                
+                @Code(name: "AppState.swift", file: AppState-04-Providers.swift, previousFile: AppState-03-MonitorAuth.swift)
+            }
+            
+            @Step {
+                세션을 실행하는 `runARKitSession`을 추가합니다.
+                
+권한이 없으면 즉시 빠져나옵니다. `session.run`에 프로바이더 두 개를 함께 넘긴 뒤, 업데이트 수신 루프를 별도 `Task`로 띄웁니다 — 이 루프는 앱이 사는 동안 끝나지 않으므로 여기서 `await`로 기다리면 함수가 영영 반환되지 않습니다. 챕터 1에서 이름만 불러 두었던 함수가 이제 실체를 갖고, 프로젝트가 처음으로 오류 없이 빌드됩니다.
+                
+                @Code(name: "AppState.swift", file: AppState-05-RunSession.swift, previousFile: AppState-04-Providers.swift)
+            }
+            
+            @Step {
+                `RoomView`에서 `roomRoot`도 씬에 추가합니다.
+                
+                한 줄이지만 빠뜨리면 오클루전이 통째로 동작하지 않습니다. 다음 섹션에서 만들 방 껍데기는 `roomRoot`의 자식으로 붙는데, `roomRoot` 자신이 씬에 없으면 그 자식들도 존재하지 않는 것과 같습니다. 아무 오류도 나지 않고 그저 아무 일도 일어나지 않기 때문에 원인을 찾기 어렵습니다.
+                
+                @Code(name: "RoomView.swift", file: RoomView-03-RoomRoot.swift, previousFile: RoomView-02-Permission.swift)
+            }
+        }
+    }
+    
+    @Section(title: "방 업데이트 수신하기") {
+        @ContentAndMedia {
+            방 정보는 내가 물어봐서 얻는 게 아니라, 바뀔 때마다 시스템이 밀어 줍니다.
+            
+            여기서 `originFromAnchorTransform`이 처음 등장합니다. 방 메시의 정점 좌표는 그 방의 앵커를 원점으로 삼은 **방 로컬 좌표**입니다. 반면 RealityKit 씬은 **월드 좌표**로 돌아갑니다. 이 4×4 행렬이 "이 방의 원점이 월드 어디에, 어떤 방향으로 놓여 있는가"를 담고 있어서, 엔티티의 `transform`에 그대로 넣어 주면 메시가 실제 방과 정확히 겹칩니다. 빠뜨리면 방 껍데기가 월드 원점 근처에 엉뚱하게 놓입니다.
+        }
+        
+        @Steps {
+            @Step {
+                `anchorUpdates`를 `for await`로 구독하는 루프를 만듭니다.
+                
+                매 프레임 "지금 무슨 방이지?"라고 되묻는 폴링 방식이 아닙니다. 방이 새로 발견되거나(`added`), 형태가 더 정확해지거나(`updated`), 추적을 잃으면(`removed`) 그때마다 이벤트가 하나씩 들어옵니다. 사라진 방의 엔티티를 정리하지 않으면 그 방을 떠나도 콘텐츠가 허공에 남습니다.
+                
+                @Code(name: "AppState.swift", file: AppState-06-UpdateLoop.swift, previousFile: AppState-05-RunSession.swift)
+            }
+            
+            @Step {
+                방 메시로 투명한 껍데기를 세웁니다.
+                
+`OcclusionMaterial`은 눈에 보이지 않으면서 깊이 값만 기록하는 재질입니다. 방 모양 그대로 이 재질을 입혀 두면, 내 방 벽 너머에 있는 가상 물체는 벽에 가려져 보이지 않게 됩니다. 이게 없으면 옆방 쿠키가 벽을 뚫고 둥둥 떠 보입니다.
+                
+                @Code(name: "AppState.swift", file: AppState-07-Occlusion.swift, previousFile: AppState-06-UpdateLoop.swift)
+            }
+            
+            @Step {
+                `isCurrentRoom`으로 지금 있는 방의 껍데기만 켭니다.
+                
+ARKit은 이전에 스캔한 방들도 함께 알려 줍니다. 껍데기를 전부 켜 두면 서로 겹쳐 엉뚱한 것까지 가리므로, 내가 서 있는 방 하나만 켭니다. 여기까지 실기기에서 실행하면 콘솔에 방 감지 로그가 찍히지만 눈에 보이는 것은 없습니다 — 오클루전 재질은 투명하니까요.
+                
+                @Code(name: "AppState.swift", file: AppState-08-CurrentRoom.swift, previousFile: AppState-07-Occlusion.swift)
             }
         }
     }
